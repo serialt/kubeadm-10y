@@ -1,0 +1,91 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  schedule:
+    - cron:  '0 5 * * 1'
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build kubeadm binary
+        id: build_kubeadm
+        shell: bash
+        run: |
+          set -eux
+          APP=kubeadm
+          APP_VERSION=$(cat version.txt)
+          APP_REPO="https://github.com/kubernetes/kubernetes.git"
+          
+          ADD_TAG=""
+          tags="$(git ls-remote --tags $APP_REPO | grep 'v[1-9]\.[0-9]*\.[0-9]*$' | awk -F'tags/' '{print $2}' | sort -t. -k1,1n -k2,2n -k3,3n)"
+          new_tags="$(printf "%s" "$tags"| sed -n '{/\.0$/{g;p}};h' | tail -4) $(printf "%s" "$tags" | tail -1)"
+          echo "::debug::[Tags] $new_tags"
+          
+          for t in $new_tags; do
+            echo "[check] $t"
+            b=$(echo "${APP_VERSION}" | grep -w ${t} | wc -l)
+            if [[ $b == 0 ]]; then
+              echo "::group::[Build] $t"
+              git clone -q --depth=1 --branch $t --progress $APP_REPO
+              pushd ${APP}
+              git checkout -b $t $t
+              git branch
+              
+              # make build
+              build/run.sh make kubeadm KUBE_BUILD_PLATFORMS=linux/amd64
+              build/run.sh make kubeadm KUBE_BUILD_PLATFORMS=linux/arm64
+              mkdir -p ./bin
+              mv _output/dockerized/bin/linux/amd64/kubeadm ./bin/kubeadm-linux-amd64
+              mv _output/dockerized/bin/linux/arm64/kubeadm ./bin/kubeadm-linux-arm64
+              ls -lah  bin/
+              cd ./bin 
+              sha256sum kubeadm-linux-{amd64,arm64} > sha256sum.txt
+
+              cd ../
+              ADD_TAG=$t
+              
+              echo "::debug::[Push file]"
+              echo "${t}" >> version.txt
+              git config --global user.email "tserialt@gmail.com"
+              git config --global user.name "serialt"
+              git config --global --add safe.directory /github/workspace
+              git add version.txt
+              git commit -m "$APP $ADD_TAG (Github Actions Automatically Built in `date +"%Y-%m-%d %H:%M"`)"
+              echo "ADD_TAG=${ADD_TAG}" >> $GITHUB_OUTPUT
+              cat  ./bin/sha256sum.txt
+              echo "::endgroup::"
+              popd
+              break
+            else
+              echo "::debug::[skip] $t"
+            fi
+          done
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        if: ${{ steps.build_kubeadm.outputs.ADD_TAG != '' }}
+        with:
+          github_token: ${{ secrets.TOKEN }}
+          branch: ${{ github.ref }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: ${{ steps.build_kubeadm.outputs.ADD_TAG != '' }}
+        with:
+          token: ${{ secrets.TOKEN }}
+          tag_name: "${{ steps.build_kubeadm.outputs.ADD_TAG }}"
+          files: |
+            ./bin/kubeadm-linux-amd64
+            ./bin/kubeadm-linux-arm64
+          body_path: ./bin/sha256sum.txt
