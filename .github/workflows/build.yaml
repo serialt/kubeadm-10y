@@ -23,7 +23,6 @@ jobs:
       - name: Build kubeadm binary
         id: build_kubeadm
         run: |
-          set -eux
           APP=kubeadm
           APP_VERSION=$(cat version.txt)
           APP_REPO="https://github.com/kubernetes/kubernetes.git"
