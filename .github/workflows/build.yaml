@@ -32,6 +32,7 @@ jobs:
           new_tags="$(printf "%s" "$tags"| sed -n '{/\.0$/{g;p}};h' | tail -4) $(printf "%s" "$tags" | tail -1)"
           echo "::debug::[Tags] $new_tags"
           
+          set -x
           for t in $new_tags; do
             echo "[check] $t"
             echo "${APP_VERSION}" | grep -w ${t} 
