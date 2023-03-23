@@ -43,6 +43,13 @@ jobs:
               git checkout -b $t $t
               git branch
               
+              # 10 year
+              sed -i 's#time.Hour \* 24 \* 365#time.Hour * 24 * 365 * 10#g'  cmd/kubeadm/app/constants/constants.go
+              grep -n -R CertificateValidity ./*
+              grep -n -R duration365d ./*
+              
+              git diff
+
               # make build
               build/run.sh make kubeadm KUBE_BUILD_PLATFORMS=linux/amd64
               build/run.sh make kubeadm KUBE_BUILD_PLATFORMS=linux/arm64
