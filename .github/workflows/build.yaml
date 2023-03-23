@@ -39,7 +39,7 @@ jobs:
             if [[ $b == 0 ]]; then
               echo "::group::[Build] $t"
               git clone -q --depth=1 --branch $t --progress $APP_REPO
-              pushd ${APP}
+
               git checkout -b $t $t
               git branch
               
