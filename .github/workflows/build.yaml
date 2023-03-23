@@ -35,8 +35,8 @@ jobs:
           set -x
           for t in $new_tags; do
             echo "[check] $t"
-            echo "${APP_VERSION}" | grep -w ${t} 
-            if [[ $? != 0 ]]; then
+            b=$(echo "${APP_VERSION}" | grep -w ${t} | wc -l)
+            if [[ $b == 0 ]]; then
               echo "::group::[Build] $t"
               git clone -q --depth=1 --branch $t --progress $APP_REPO
               pushd ${APP}
