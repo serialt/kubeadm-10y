@@ -39,7 +39,7 @@ jobs:
             if [[ $b == 0 ]]; then
               echo "::group::[Build] $t"
               git clone -q --depth=1 --branch $t --progress $APP_REPO
-
+              cd ${APP_PROJECT}
               git checkout -b $t $t
               git branch
               
@@ -85,6 +85,6 @@ jobs:
           token: ${{ secrets.TOKEN }}
           tag_name: "${{ steps.build_kubeadm.outputs.ADD_TAG }}"
           files: |
-            ./bin/kubeadm-linux-amd64
-            ./bin/kubeadm-linux-arm64
-          body_path: ./bin/sha256sum.txt
+            ./kubernetes/bin/kubeadm-linux-amd64
+            ./kubernetes/bin/kubeadm-linux-arm64
+          body_path: ./kubernetes/bin/sha256sum.txt
